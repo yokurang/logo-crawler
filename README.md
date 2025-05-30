@@ -1,6 +1,6 @@
 # Overview
 
-A technical interview project for data engineers.
+A technical challenge for data engineers.
 
 The objective is to write a python program that will collect as many logos as you can across across a sample of websites.
 
