@@ -56,7 +56,7 @@ class LogoCrawler:
                     "domain": domain,
                     "retry": 1,
                     "last_attempt_timestamp": None,
-                    "attempt_durations": [],
+                    "attempts": [],
                 }
             )
         logger.info(f"Added {self.total_domains} domains to the queue.")
@@ -170,6 +170,7 @@ class LogoCrawler:
                 "fallback_logo": self.fallback_favicon(domain),
                 "source": "none",
                 "roundtrip": None,
+                "error": str(e),
             }
 
     async def worker(self):
@@ -197,19 +198,24 @@ class LogoCrawler:
                     result = await self.fetch_logo(session, domain)
 
                 attempt_duration = time.time() - attempt_start
-                task.setdefault("attempt_durations", []).append(attempt_duration)
-                result["attempt_durations"] = task["attempt_durations"]
+                if result["status"] == "Success":
+                    task.setdefault("attempts", []).append((attempt_duration, None))
+                else:
+                    task.setdefault("attempts", []).append(
+                        (attempt_duration, result.get("error", "Unknown error"))
+                    )
+
+                result["attempts"] = task["attempts"]
 
                 if result["status"] == "Success":
                     logger.info(
-                        f"[{domain}] Successfully retrieved logo::\n{json.dumps(result, indent=2)}"
+                        f"[{domain}] Successfully retrieved logo:\n{json.dumps(result, indent=2)}"
                     )
                     self.results.append(result)
                     self.completed += 1
                     self.successes += 1
                     logger.info(
-                        f"[{domain}] Progress: {self.completed}/{self.total_domains} domains completed. "
-                        f"({self.successes} successes, {self.failures} failures)"
+                        f"[{domain}] Progress: {self.completed}/{self.total_domains} domains completed. ({self.successes} successes, {self.failures} failures)"
                     )
                 elif retries < self.max_retry:
                     logger.info(
@@ -220,7 +226,7 @@ class LogoCrawler:
                             "domain": domain,
                             "retry": retries + 1,
                             "last_attempt_timestamp": time.time(),
-                            "attempt_durations": task["attempt_durations"],
+                            "attempts": task["attempts"],
                         }
                     )
                 else:
@@ -231,8 +237,7 @@ class LogoCrawler:
                     self.completed += 1
                     self.failures += 1
                     logger.info(
-                        f"[{domain}] Progress: {self.completed}/{self.total_domains} domains completed. "
-                        f"({self.successes} successes, {self.failures} failures)"
+                        f"[{domain}] Progress: {self.completed}/{self.total_domains} domains completed. ({self.successes} successes, {self.failures} failures)"
                     )
 
                 self.work_queue.task_done()
@@ -254,6 +259,7 @@ class LogoCrawler:
 async def crawl_with_queue(domains, min_delay=1.0):
     crawler = LogoCrawler(domains, min_delay=min_delay)
     return await crawler.run()
+
 
 # Tests
 def test_standardise_url():
@@ -416,4 +422,3 @@ async def test_fetch_logo_real(domain):
                     assert isinstance(result["fallback_logo"], str)
                     if result["status"] == "Success":
                         assert result["logo"]
-

@@ -50,11 +50,11 @@ def summarize(results):
     favicon = sum(1 for r in results if r["favicon_logo"])
     fallback = sum(1 for r in results if r["logo"] == r["fallback_logo"])
 
-    # Roundtrip time statistics
+    # Roundtrip time statistics based on new 'attempts' structure
     all_times = [
-        (sum(r["attempt_durations"]), r["domain"])
+        (sum(d for d, _ in r["attempts"]), r["domain"])
         for r in results
-        if r["attempt_durations"]
+        if r.get("attempts")
     ]
     total_time = sum(t for t, _ in all_times)
     avg_time = total_time / len(all_times) if all_times else 0
