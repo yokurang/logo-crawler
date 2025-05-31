@@ -41,6 +41,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 def load_domains_from_stdin():
     return [
         line.strip() for line in sys.stdin.read().strip().split("\n") if line.strip()
@@ -49,11 +50,7 @@ def load_domains_from_stdin():
 
 def summarize(results):
     total = len(results)
-    success = sum(
-        1
-        for r in results
-        if r["status"] in {LOGO_FOUND, FAVICON_FOUND}
-    )
+    success = sum(1 for r in results if r["status"] in {LOGO_FOUND, FAVICON_FOUND})
     fail = sum(1 for r in results if r["status"] in {NOTHING_FOUND, FAILURE_MSG})
 
     jsonld = sum(1 for r in results if r["status"] == LOGO_FOUND)

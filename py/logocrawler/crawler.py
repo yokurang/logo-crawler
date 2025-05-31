@@ -86,8 +86,8 @@ class LogoCrawler:
         self.results = []
         # balance overhead for semaphores and speeding up the job using
         # concurrency. One improvement may be to optimise this heuristic.
-        # self.concurrent_workers = max(1, len(domains) // 50)
-        self.concurrent_workers = 200
+        self.concurrent_workers = max(1, len(domains) // 50)
+        # self.concurrent_workers = 200 # speed up for testing
         self.semaphore = asyncio.Semaphore(self.concurrent_workers)
         self.work_queue = asyncio.Queue()
         self.min_delay = min_delay
@@ -160,7 +160,7 @@ class LogoCrawler:
             # fallback strategy
             if isinstance(data, dict):
                 for key, value in data.items():
-                    if key.lower() == "logo":
+                    if "logo" in key.lower():
                         if isinstance(value, str):
                             return value
                         if isinstance(value, dict) and "url" in value:

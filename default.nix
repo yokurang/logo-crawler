@@ -19,8 +19,6 @@ in pkgs.mkShell rec {
                 ipython
                 nose
                 beautifulsoup4
-                requests 
-                pytest
                 aiohttp
                 black
                 flake8
