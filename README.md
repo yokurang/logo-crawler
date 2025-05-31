@@ -157,7 +157,6 @@ With the current setup, it takes 3 minutes to go through 1000 doimains from `web
 
 ## Development Environment
 
-- Python 3.8+
 - Uses only minimal dependencies: `aiohttp`, `beautifulsoup4`, and `flake8`, `black` for formatting.
 - Reproducible setup using `default.nix` + `nix-shell`
 
