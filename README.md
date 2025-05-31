@@ -134,6 +134,10 @@ These two tiers provide a more complete evaluation where strict metrics show exa
 
 ## Scaling to Millions of Domains
 
+With the current setup, it takes 3 minutes to go through 1000 doimains from `websites.csv`.
+
+`[2025-06-01 02:33:49] [INFO] [TOTAL PROGRAM TIME] 196.26 seconds`
+
 ### Current Limitations
 
 - In-memory queue
