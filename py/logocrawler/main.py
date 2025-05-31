@@ -2,33 +2,30 @@
 This is the entry point script for the asynchronous logo crawler.
 
 It handles:
-- Command-line argument parsing (file input or STDIN for domains)
-- Loading domain names from a text file or from standard input
+- Loading domain names from standard input
 - Launching the asynchronous logo crawling process
-  via `crawl_with_queue(domains)`
-- Summarizing crawl results (success rates, strategies used, timing metrics)
-- Outputting results as CSV to standard output
+  via 'crawl_with_queue(domains)'
+- Summarizing crawl results (success rates, timing metrics, saving logs to
+  'py/logocrawler/logs.txt')
+- Outputting results to standard output
 
 The crawl uses an asyncio queue-based architecture with worker coroutines
 that extract logos via a prioritized strategy:
 1. JSON-LD logo
-2. Favicon link
-3. Fallback to `/favicon.ico`
-
-The `crawl_with_queue()` function runs the entire pipeline with concurrency
-controls and retry logic.
+2. Meta or image tag with logo-related hints
+3. Favicon
 """
 
 import asyncio
 import logging
 import csv
 import sys
+import time
 from io import StringIO
 from crawler import (
     crawl_with_queue,
     LOGO_FOUND,
     FAVICON_FOUND,
-    FALLBACK_FAVICON_FOUND,
     NOTHING_FOUND,
     FAILURE_MSG,
 )
@@ -42,9 +39,7 @@ logging.basicConfig(
         logging.StreamHandler(),
     ],
 )
-
 logger = logging.getLogger(__name__)
-
 
 def load_domains_from_stdin():
     return [
@@ -57,13 +52,12 @@ def summarize(results):
     success = sum(
         1
         for r in results
-        if r["status"] in {LOGO_FOUND, FAVICON_FOUND, FALLBACK_FAVICON_FOUND}
+        if r["status"] in {LOGO_FOUND, FAVICON_FOUND}
     )
     fail = sum(1 for r in results if r["status"] in {NOTHING_FOUND, FAILURE_MSG})
 
     jsonld = sum(1 for r in results if r["status"] == LOGO_FOUND)
     favicon = sum(1 for r in results if r["status"] == FAVICON_FOUND)
-    fallback = sum(1 for r in results if r["status"] == FALLBACK_FAVICON_FOUND)
     nothing = sum(1 for r in results if r["status"] == NOTHING_FOUND)
     failure = sum(1 for r in results if r["status"] == FAILURE_MSG)
 
@@ -80,7 +74,6 @@ def summarize(results):
     logger.info(f"Total: {total}, Success: {success}, Failure: {fail}")
     logger.info(f"JSON-LD logos: {jsonld}")
     logger.info(f"Favicon logos: {favicon}")
-    logger.info(f"Fallback favicons: {fallback}")
     logger.info(f"Nothing found: {nothing}")
     logger.info(f"Failed fetches: {failure}")
     logger.info(
@@ -91,6 +84,19 @@ def summarize(results):
 
 
 def write_csv_stdout(results):
+    """
+    Writes crawl results to standard output in CSV format.
+
+    Output Columns:
+    - domain: The domain that was crawled (e.g. "example.com")
+    - logo: The final resolved URL of the logo (if any), otherwise an empty string
+    - label: The crawl result status, one of:
+        - "JSONLD_LOGO_FOUND" (logo found in JSON-LD structured data)
+        - "FAVICON_FOUND" (logo found via <link rel="icon"> or similar)
+        - "NOTHING_FOUND" (no logo found)
+        - "FAILURE" (failed to fetch or parse page)
+    - error: Error message if the status is "FAILURE", otherwise empty string
+    """
     keys = ["domain", "logo", "label", "error"]
     writer = csv.DictWriter(sys.stdout, fieldnames=keys)
     writer.writeheader()
@@ -121,7 +127,6 @@ def test_write_csv():
             "status": LOGO_FOUND,
             "jsonld_logo": "a.png",
             "favicon_logo": None,
-            "fallback_logo": "https://a.com/favicon.ico",
             "source": "jsonld_logo",
         },
         {
@@ -130,7 +135,6 @@ def test_write_csv():
             "status": FAVICON_FOUND,
             "jsonld_logo": None,
             "favicon_logo": "b.png",
-            "fallback_logo": "https://b.com/favicon.ico",
             "source": "favicon_logo",
         },
         {
@@ -139,7 +143,6 @@ def test_write_csv():
             "status": FAILURE_MSG,
             "jsonld_logo": None,
             "favicon_logo": None,
-            "fallback_logo": None,
             "source": "none",
             "error": "Timeout",
         },
@@ -167,9 +170,14 @@ if __name__ == "__main__":
     test_write_csv()
     logger.info("The tests for main.py have all passed.")
 
+    start_time = time.time()
+
     domains = load_domains_from_stdin()
     logger.info(f"Crawling for logos on {len(domains)} websites")
 
     results = asyncio.run(crawl_with_queue(domains))
     summarize(results)
     write_csv_stdout(results)
+
+    total_time = time.time() - start_time
+    logger.info(f"[TOTAL PROGRAM TIME] {total_time:.2f} seconds")
